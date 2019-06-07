@@ -1,7 +1,4 @@
-
-  shared_buffers: '${PATRONI_POSTGRES_BUFFERS}'
-  max_parallel_workers_per_gather: '${PATRONI_POSTGRES_MAX_PARALLEL}'
-  !/bin/bash
+!/bin/bash
 
 if [[ $UID -ge 10000 ]]; then
     GID=$(id -g)
@@ -15,6 +12,22 @@ bootstrap:
   dcs:
     postgresql:
       use_pg_rewind: true
+    parameters:
+      shared_buffers: '16GB'
+      max_connections: 300
+      max_worker_processes: 48
+      max_parallel_workers: 48
+      max_parallel_workers_per_gather: 16
+      work_mem: '1GB'
+      maintenance_work_mem: '1GB'
+      temp_file_limit: '20GB'
+      idle_in_transaction_session_timeout = '60min'
+      wal_buffers: '128MB'
+      max_wal_size: '8GB'
+      min_wal_size: '1GB'
+      default_statistics_target: 1000
+      effective_io_concurrency: 8
+      random_page_cost: 1.5
   initdb:
   - auth-host: md5
   - auth-local: trust
@@ -33,23 +46,12 @@ postgresql:
       password: '${PATRONI_SUPERUSER_PASSWORD}'
     replication:
       password: '${PATRONI_REPLICATION_PASSWORD}'
-  parameters:
-    shared_buffers: '${PATRONI_POSTGRES_BUFFERS}'
-    max_connections: '${PATRONI_POSTGRES_MAX_CONN}'
-    max_parallel_workers_per_gather: '${PATRONI_POSTGRES_MAX_PARALLEL}'
-    max_workers: '${PATRON_POSTGRES_MAX_WORKERS}'
-    work_mem: '${PATRONI_POSTGRES_WORK_MEM}'
-    temp_file_limit: '5GB'
-    idle_in_transaction_session_timeout = '60min'
-    wal_buffers: '${PATRONI_POSTGRES_WAL_BUFFERS}'
-    synchronous_commit: 'off'
 __EOF__
 
 unset PATRONI_SUPERUSER_PASSWORD PATRONI_REPLICATION_PASSWORD
 export KUBERNETES_NAMESPACE=$PATRONI_KUBERNETES_NAMESPACE
 export POD_NAME=$PATRONI_NAME
 
-chown -R postgres /home/postgres/pgdata
 chmod -R 0700 /home/postgres/pgdata
 
 exec /usr/bin/python3 /usr/local/bin/patroni /home/postgres/patroni.yml
